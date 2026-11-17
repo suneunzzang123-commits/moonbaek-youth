@@ -27,6 +27,7 @@ let rosterFilter = 'active';
 let searchTerm = '';
 let monthCursor = new Date();
 let toastTimer;
+let recoveryMode = false;
 
 function toast(message) {
   toastEl.textContent = message;
@@ -58,6 +59,11 @@ function statusClass(status) {
 
 async function boot() {
   supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      recoveryMode = true;
+      passwordRecovery();
+      return;
+    }
     if (event === 'SIGNED_OUT' || !session) {
       user = null;
       db = emptyDb();
@@ -69,6 +75,7 @@ async function boot() {
     login(error.message);
     return;
   }
+  if (recoveryMode) return;
   if (data.session?.user) {
     await openSession(data.session.user);
   } else {
@@ -191,6 +198,7 @@ function login(errorMessage = '') {
       <div class="field"><label for="password">비밀번호</label><input id="password" type="password" autocomplete="current-password" required placeholder="비밀번호"></div>
       <button class="btn primary" type="submit" style="width:100%;margin-top:14px">로그인</button>
     </form>
+    <button class="text-btn" id="forgotPassword" style="margin-top:14px">비밀번호를 잊으셨나요?</button><br>
     <button class="text-btn" id="showSignup" style="margin-top:16px">처음 오셨나요? 교사 가입 신청</button>
     <div class="login-hint">가입 후 관리자의 승인이 완료되면 출석부를 사용할 수 있어요.</div>
   </div></div>`;
@@ -206,7 +214,60 @@ function login(errorMessage = '') {
     }
     await openSession(data.user);
   };
+  document.getElementById('forgotPassword').onclick = requestPasswordReset;
   document.getElementById('showSignup').onclick = signup;
+}
+
+function requestPasswordReset(errorMessage = '') {
+  app.innerHTML = `<div class="login"><div class="login-card">
+    <div class="brand"><div class="brand-mark">✳</div><div><strong>문백교회 청소년부</strong><small>비밀번호 재설정</small></div></div>
+    <h1>새 비밀번호 받기</h1>
+    <p>가입한 이메일로 재설정 링크를 보내 드립니다.</p>
+    ${errorMessage ? `<div class="login-hint" role="alert">${esc(errorMessage)}</div>` : ''}
+    <form id="resetRequestForm">
+      <div class="field"><label for="resetEmail">이메일</label><input id="resetEmail" type="email" autocomplete="email" required value="${esc(user?.email || '')}"></div>
+      <button class="btn primary" type="submit" style="width:100%;margin-top:14px">재설정 링크 보내기</button>
+    </form>
+    <button class="text-btn" id="backToLogin" style="margin-top:16px">로그인으로 돌아가기</button>
+  </div></div>`;
+  document.getElementById('backToLogin').onclick = () => login();
+  document.getElementById('resetRequestForm').onsubmit = async (event) => {
+    event.preventDefault();
+    const email = document.getElementById('resetEmail').value.trim();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href,
+    });
+    if (error) {
+      requestPasswordReset(error.message);
+      return;
+    }
+    app.innerHTML = `<div class="login"><div class="login-card"><h1>메일을 확인해 주세요</h1><p>계정이 있으면 비밀번호 재설정 링크를 보냈습니다. 메일의 링크를 눌러 새 비밀번호를 정하세요.</p><button class="btn" id="backToLogin">로그인으로</button></div></div>`;
+    document.getElementById('backToLogin').onclick = () => login();
+  };
+}
+
+function passwordRecovery(errorMessage = '') {
+  app.innerHTML = `<div class="login"><div class="login-card">
+    <div class="brand"><div class="brand-mark">✳</div><div><strong>문백교회 청소년부</strong><small>비밀번호 재설정</small></div></div>
+    <h1>새 비밀번호 설정</h1>
+    <p>8자 이상으로 새 비밀번호를 입력해 주세요.</p>
+    ${errorMessage ? `<div class="login-hint" role="alert">${esc(errorMessage)}</div>` : ''}
+    <form id="newPasswordForm">
+      <div class="field"><label for="newPassword">새 비밀번호</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></div>
+      <button class="btn primary" type="submit" style="width:100%;margin-top:14px">비밀번호 변경</button>
+    </form>
+  </div></div>`;
+  document.getElementById('newPasswordForm').onsubmit = async (event) => {
+    event.preventDefault();
+    const password = document.getElementById('newPassword').value;
+    const { data, error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      passwordRecovery(error.message);
+      return;
+    }
+    recoveryMode = false;
+    await openSession(data.user);
+  };
 }
 
 function signup(errorMessage = '') {
