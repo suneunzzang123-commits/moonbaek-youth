@@ -335,14 +335,12 @@ function pageTitle() {
 }
 
 function shell(content) {
-  app.innerHTML = `<div class="shell"><aside class="sidebar">
-    <div class="brand"><div class="brand-mark">✳</div><div><strong>문백교회 청소년부</strong><small>함께 자라고, 함께 기록해요</small></div></div>
-    <div><div class="nav-label">메뉴</div><nav class="nav">${nav()}</nav></div>
-    <div class="side-bottom"><div class="demo-badge"><b>◉ 승인된 교사 전용</b>출석 데이터는 모든 승인된 계정에 공유됩니다.</div></div>
-  </aside><main class="main"><header class="topbar">
-    <div class="crumb">문백교회 <span> / </span><b>${pageTitle()}</b></div>
-    <div class="user-chip"><div class="avatar">${esc(user.name.slice(0, 1))}</div><span class="name">${esc(user.name)} · ${user.role === 'admin' ? '관리자' : '교사'}</span><button class="text-btn" id="logout">로그아웃</button></div>
-  </header><section class="content">${content}</section></main></div>`;
+  app.innerHTML = `<div class="site-shell">
+    <div class="announcement"><div class="site-width"><span class="announcement-tag">함께</span><span>문백교회 청소년부 · 함께 자라고, 함께 기록해요</span><span class="announcement-date">주일 출석과 청소년부 소식을 한곳에서</span></div></div>
+    <div class="utility"><div class="site-width"><span>문백교회 <b>/</b> 청소년부</span><div class="user-chip"><div class="avatar">${esc(user.name.slice(0, 1))}</div><span class="name">${esc(user.name)} · ${user.role === 'admin' ? '관리자' : '교사'}</span><button class="text-btn" id="logout">로그아웃</button></div></div></div>
+    <header class="site-header"><div class="site-width"><div class="brand"><div class="brand-mark">✳</div><div><strong>문백교회 청소년부</strong><small>함께 자라고, 함께 기록해요</small></div></div><nav class="nav">${nav()}</nav><div class="approval-mark">● 승인된 교사</div></div></header>
+    <main class="main"><section class="content site-width">${content}</section></main>
+  </div>`;
   document.querySelectorAll('[data-page]').forEach((button) => {
     button.onclick = () => { page = button.dataset.page; render(); };
   });
@@ -363,6 +361,8 @@ function dashboard() {
   const dates = recentDates.length ? recentDates : [selectedDate];
   const recent = dates.map((date) => `<div class="list-row"><div class="person"><div class="person-avatar">${new Date(`${date}T12:00:00`).getDate()}</div><div><strong>${fmt(date, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</strong><small>출석 ${Object.values(db.attendance[date] || {}).filter((s) => s === '출석').length}명 · 결석 ${Object.values(db.attendance[date] || {}).filter((s) => s === '결석').length}명</small></div></div><button class="text-btn" data-open-date="${date}">기록 보기</button></div>`).join('');
   return `${heading(`SUNDAY · ${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}`, '아이들과 함께하는 주일', '오늘의 예배를 준비하고, 한 명 한 명의 안부를 살펴봐요.', `<input type="date" class="date-input" id="dashDate" value="${selectedDate}"><button class="btn primary" data-page="attendance">출석 체크 시작 ↗</button>`)}
+    <div class="welcome-feature"><div class="welcome-copy"><span class="feature-kicker">SUNDAY · YOUTH MINISTRY</span><h2>한 사람 한 사람,<br>사랑으로 기억해요</h2><p>함께 예배하고 서로의 한 주를 살피는 문백교회 청소년부</p><button class="feature-link" data-page="attendance">오늘 출석 기록하기 <span>↗</span></button><div class="feature-dots"><i></i><i></i><i></i></div></div><div class="feature-side"><span>THIS SUNDAY</span><strong>${fmt(selectedDate, { month: 'long', day: 'numeric', weekday: 'long' })}</strong><div class="feature-count"><b>${c['출석']}</b><small>명 출석 확인</small></div><span class="feature-cross">✳</span></div></div>
+    <div class="quick-section"><div class="quick-title"><div><span class="eyebrow">QUICK ACCESS</span><h2>필요한 메뉴를 바로 찾아보세요</h2></div><p>출석부터 일정까지, 자주 쓰는 메뉴를 모았어요.</p></div><div class="quick-grid"><button class="quick-card quick-primary" data-page="attendance"><span>01　ATTENDANCE</span><b>주일 출석 체크</b><small>예배 참석 현황을 기록해요</small><i>↗</i></button><button class="quick-card" data-page="youths"><span>02　PEOPLE</span><b>청소년 명단</b><small>아이들의 정보를 살펴봐요</small><i>↗</i></button><button class="quick-card" data-page="stats"><span>03　INSIGHTS</span><b>출석 통계</b><small>함께 쌓인 기록을 확인해요</small><i>↗</i></button><button class="quick-card" data-page="calendar"><span>04　CALENDAR</span><b>청소년부 일정</b><small>다가오는 일정을 확인해요</small><i>↗</i></button></div></div>
     <div class="stats">${stat('재적 청소년', '현재 재적 기준', activeYouth().length, '♙')}${stat('출석', '예배 참석', c['출석'], '✓')}${stat('결석', '안부 확인 필요', c['결석'], '!')}${stat('사전 연락 · 미확인', `사전 연락 ${c['사전 연락']} · 미확인 ${c['미확인']}`, c['사전 연락'] + c['미확인'], '◷')}</div>
     <div class="grid-two"><div class="panel"><div class="panel-head"><div><h2>오늘 출석 현황</h2><p>${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric' })} 기준 · 재적 ${activeYouth().length}명</p></div><button class="link-btn" data-page="attendance">출석부 열기 →</button></div>
       ${['출석', '결석', '사전 연락', '미확인'].map((s) => `<div class="progress-row"><span class="label">${s}</span><div class="bar"><i style="width:${activeYouth().length ? (c[s] / activeYouth().length) * 100 : 0}%"></i></div><strong>${c[s]}명</strong></div>`).join('')}
