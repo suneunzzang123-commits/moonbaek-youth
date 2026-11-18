@@ -442,17 +442,20 @@ function calendarPage() {
   const month = monthCursor.getMonth();
   const offset = new Date(year, month, 1).getDay();
   const days = new Date(year, month + 1, 0).getDate();
-  const cells = Array.from({ length: offset }, () => '<div></div>');
+  const cells = Array.from({ length: offset }, () => '<div class="cal-empty" aria-hidden="true"></div>');
   for (let day = 1; day <= days; day += 1) {
     const date = iso(new Date(year, month, day));
     const events = db.events.filter((event) => event.date === date);
-    cells.push(`<div class="cal-day ${events.length ? 'event' : ''}">${day}${events.map((event) => `<small>${esc(event.title)}</small>`).join('')}</div>`);
+    const weekday = new Date(year, month, day).getDay();
+    const classes = ['cal-day', weekday === 0 ? 'sunday' : '', weekday === 6 ? 'saturday' : '', date === todayISO() ? 'today' : '', events.length ? 'event' : ''].filter(Boolean).join(' ');
+    cells.push(`<div class="${classes}" aria-label="${year}년 ${month + 1}월 ${day}일${events.length ? ` 일정 ${events.length}개` : ''}"><span class="cal-number">${day}</span><span class="cal-events">${events.slice(0, 2).map((event) => `<small title="${esc(event.title)}">${esc(event.title)}</small>`).join('')}${events.length > 2 ? `<small class="more-events">+${events.length - 2}개 일정</small>` : ''}</span></div>`);
   }
+  while (cells.length < 42) cells.push('<div class="cal-empty" aria-hidden="true"></div>');
   const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
   const monthEvents = db.events.filter((event) => event.date.startsWith(monthKey)).sort((a, b) => a.date.localeCompare(b.date));
   const addButton = user.role === 'admin' ? '<button class="btn primary" id="addEvent">＋ 일정 추가</button>' : '';
   return `${heading('CALENDAR', '함께하는 일정', '예배와 청소년부 일정을 확인해요.', `<button class="btn" id="prevMonth">←</button><button class="btn" id="nextMonth">→</button>${addButton}`)}
-    <div class="grid-two"><div class="panel"><div class="panel-head"><h2>${year}년 ${month + 1}월</h2></div><div class="month-calendar">${['일', '월', '화', '수', '목', '금', '토'].map((d) => `<div class="cal-label">${d}</div>`).join('')}${cells.join('')}</div></div>
+    <div class="grid-two calendar-layout"><div class="panel calendar-panel"><div class="panel-head"><div><h2>${year}년 ${month + 1}월</h2><p>날짜별 예배와 청소년부 일정</p></div></div><div class="month-calendar" role="grid" aria-label="${year}년 ${month + 1}월 달력">${['일', '월', '화', '수', '목', '금', '토'].map((d, i) => `<div class="cal-label ${i === 0 ? 'sunday' : ''} ${i === 6 ? 'saturday' : ''}" role="columnheader">${d}</div>`).join('')}${cells.join('')}</div></div>
     <div class="panel"><div class="panel-head"><div><h2>일정 목록</h2><p>${year}년 ${month + 1}월</p></div></div>${eventRows(monthEvents) || '<div class="empty">이번 달 일정이 없어요.</div>'}</div></div>`;
 }
 
