@@ -159,11 +159,13 @@ async function loadData() {
     }
     return {
       id: post.id,
+      authorId: post.author_id,
       author: post.author_name,
       date: post.post_date,
       category: post.category,
       content: post.content,
       image,
+      imagePath: post.image_path,
       comments: commentsByPost.get(post.id) || [],
     };
   }));
@@ -362,7 +364,7 @@ function dashboard() {
   const recent = dates.map((date) => `<div class="list-row"><div class="person"><div class="person-avatar">${new Date(`${date}T12:00:00`).getDate()}</div><div><strong>${fmt(date, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</strong><small>출석 ${Object.values(db.attendance[date] || {}).filter((s) => s === '출석').length}명 · 결석 ${Object.values(db.attendance[date] || {}).filter((s) => s === '결석').length}명</small></div></div><button class="text-btn" data-open-date="${date}">기록 보기</button></div>`).join('');
   return `${heading(`SUNDAY · ${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}`, '아이들과 함께하는 주일', '오늘의 예배를 준비하고, 한 명 한 명의 안부를 살펴봐요.', `<input type="date" class="date-input" id="dashDate" value="${selectedDate}"><button class="btn primary" data-page="attendance">출석 체크 시작 ↗</button>`)}
     <div class="welcome-feature"><div class="welcome-copy"><span class="feature-kicker">SUNDAY · YOUTH MINISTRY</span><h2>한 사람 한 사람,<br>사랑으로 기억해요</h2><p>함께 예배하고 서로의 한 주를 살피는 문백교회 청소년부</p><button class="feature-link" data-page="attendance">오늘 출석 기록하기 <span>↗</span></button><div class="feature-dots"><i></i><i></i><i></i></div></div><div class="feature-side"><span>THIS SUNDAY</span><strong>${fmt(selectedDate, { month: 'long', day: 'numeric', weekday: 'long' })}</strong><div class="feature-count"><b>${c['출석']}</b><small>명 출석 확인</small></div><span class="feature-cross">✳</span></div></div>
-    <div class="quick-section"><div class="quick-title"><div><span class="eyebrow">QUICK ACCESS</span><h2>필요한 메뉴를 바로 찾아보세요</h2></div><p>출석부터 일정까지, 자주 쓰는 메뉴를 모았어요.</p></div><div class="quick-grid"><button class="quick-card quick-primary" data-page="attendance"><span>01　ATTENDANCE</span><b>주일 출석 체크</b><small>예배 참석 현황을 기록해요</small><i>↗</i></button><button class="quick-card" data-page="youths"><span>02　PEOPLE</span><b>청소년 명단</b><small>아이들의 정보를 살펴봐요</small><i>↗</i></button><button class="quick-card" data-page="stats"><span>03　INSIGHTS</span><b>출석 통계</b><small>함께 쌓인 기록을 확인해요</small><i>↗</i></button><button class="quick-card" data-page="calendar"><span>04　CALENDAR</span><b>청소년부 일정</b><small>다가오는 일정을 확인해요</small><i>↗</i></button></div></div>
+    <div class="quick-section"><div class="quick-title"><div><span class="eyebrow">QUICK ACCESS</span><h2>메뉴</h2></div><p>출석부터 일정까지, 자주 쓰는 메뉴를 모았어요.</p></div><div class="quick-grid"><button class="quick-card quick-primary" data-page="attendance"><span>01　ATTENDANCE</span><b>주일 출석 체크</b><small>예배 참석 현황을 기록해요</small><i>↗</i></button><button class="quick-card" data-page="youths"><span>02　PEOPLE</span><b>청소년 명단</b><small>아이들의 정보를 살펴봐요</small><i>↗</i></button><button class="quick-card" data-page="stats"><span>03　INSIGHTS</span><b>출석 통계</b><small>함께 쌓인 기록을 확인해요</small><i>↗</i></button><button class="quick-card" data-page="calendar"><span>04　CALENDAR</span><b>청소년부 일정</b><small>다가오는 일정을 확인해요</small><i>↗</i></button></div></div>
     <div class="stats">${stat('재적 청소년', '현재 재적 기준', activeYouth().length, '♙')}${stat('출석', '예배 참석', c['출석'], '✓')}${stat('결석', '안부 확인 필요', c['결석'], '!')}${stat('사전 연락 · 미확인', `사전 연락 ${c['사전 연락']} · 미확인 ${c['미확인']}`, c['사전 연락'] + c['미확인'], '◷')}</div>
     <div class="grid-two"><div class="panel"><div class="panel-head"><div><h2>오늘 출석 현황</h2><p>${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric' })} 기준 · 재적 ${activeYouth().length}명</p></div><button class="link-btn" data-page="attendance">출석부 열기 →</button></div>
       ${['출석', '결석', '사전 연락', '미확인'].map((s) => `<div class="progress-row"><span class="label">${s}</span><div class="bar"><i style="width:${activeYouth().length ? (c[s] / activeYouth().length) * 100 : 0}%"></i></div><strong>${c[s]}명</strong></div>`).join('')}
@@ -425,7 +427,7 @@ function statsPage() {
 
 function boardPage() {
   const posts = [...db.posts].sort((a, b) => b.date.localeCompare(a.date));
-  const meditationCards = db.meditations.length ? [...db.meditations].map((m) => `<div class="med-card"><img class="med-image" src="${esc(m.image)}" alt="묵상 사진" style="object-fit:cover"><div><h3>${esc(m.author)}의 묵상</h3><p>${esc(m.content)}</p><span class="muted">${fmt(m.date, { month: 'short', day: 'numeric' })}</span></div></div>`).join('') : '<div class="empty">아직 묵상 사진이 없어요.</div>';
+  const meditationCards = db.meditations.length ? [...db.meditations].map((m) => `<button type="button" class="med-card med-card-button" data-med="${m.id}" aria-label="${esc(m.author)}의 묵상 상세 보기"><img class="med-image" src="${esc(m.image)}" alt="묵상 사진" style="object-fit:cover"><span class="med-card-copy"><h3>${esc(m.author)}의 묵상</h3><p>${esc(m.content)}</p><span class="muted">${fmt(m.date, { month: 'short', day: 'numeric' })}</span></span><span class="med-open" aria-hidden="true">자세히 보기 ↗</span></button>`).join('') : '<div class="empty">아직 묵상 사진이 없어요.</div>';
   const postCards = posts.map((post) => `<article class="med-card" style="grid-template-columns:1fr"><div><span class="pill">${esc(post.category)}</span><h3 style="margin-top:9px">${esc(post.author)} <span class="muted">· ${fmt(post.date, { month: 'short', day: 'numeric' })}</span></h3><p>${esc(post.content)}</p>${post.comments.map((comment) => `<div style="margin:8px 0 0 14px;padding-left:10px;border-left:2px solid #e7eee6;font-size:11px;color:#686f67"><b>${esc(comment.author)}</b> ${esc(comment.content)}</div>`).join('')}<button class="text-btn" data-comment="${post.id}" style="margin-top:10px">＋ 댓글 달기</button></div></article>`).join('');
   return `${heading('MEDITATION', '묵상 게시판', '말씀을 나누고 서로를 격려해요.', '<button class="btn primary" id="newPost">＋ 글 작성</button>')}
     <div class="grid-two"><div class="panel"><div class="panel-head"><div><h2>오늘의 묵상</h2><p>사진과 마음에 남은 생각을 공유합니다.</p></div></div><form id="medForm"><div class="field"><label>사진 (선택, JPG·PNG·WebP 5MB 이하)</label><input type="file" id="medImage" accept="image/jpeg,image/png,image/webp"></div><div class="field" style="margin-top:12px"><label>묵상 내용 *</label><textarea id="medText" required placeholder="오늘 마음에 남은 말씀이나 생각을 나눠 주세요."></textarea></div><button class="btn primary" style="margin-top:12px">공유하기</button></form></div>
@@ -501,6 +503,47 @@ function historyModal(id) {
   const statuses = dates.map((date) => db.attendance[date][id]);
   const summary = ['출석', '결석', '사전 연락'].map((status) => `${status} ${statuses.filter((s) => s === status).length}`).join(' · ');
   modal(`${esc(youth.name)} 출석 이력`, `<p class="muted">${esc(youth.group || '반 미지정')} · ${summary}</p><div class="list">${dates.map((date) => `<div class="list-row"><b style="font-size:12px">${fmt(date, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</b><span class="pill ${statusClass(db.attendance[date][id])}">${db.attendance[date][id]}</span></div>`).join('') || '<div class="empty">기록된 출석 이력이 없어요.</div>'}</div>`, '<button class="btn" data-close>닫기</button>');
+}
+
+function meditationDetailModal(id) {
+  const meditation = db.meditations.find((item) => item.id === id);
+  if (!meditation) return;
+  const canEdit = meditation.authorId === user.id || user.role === 'admin';
+  modal(`${esc(meditation.author)}의 묵상`, `<div class="med-detail">${meditation.image ? `<img src="${esc(meditation.image)}" alt="${esc(meditation.author)}의 묵상 사진">` : ''}<p class="med-detail-content">${esc(meditation.content)}</p><span class="muted">${fmt(meditation.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>`, `<button class="btn" data-close>닫기</button>${canEdit ? '<button class="btn primary" id="editMeditation">수정</button>' : ''}`);
+  document.getElementById('editMeditation')?.addEventListener('click', () => editMeditationModal(id));
+}
+
+function editMeditationModal(id) {
+  const meditation = db.meditations.find((item) => item.id === id);
+  if (!meditation) return;
+  modal('묵상 수정', `<form id="editMedForm" class="form"><div class="field full"><label for="editMedText">묵상 내용 *</label><textarea id="editMedText" name="content" required maxlength="10000">${esc(meditation.content)}</textarea></div><div class="field full"><label for="editMedImage">사진 바꾸기 (선택, JPG·PNG·WebP 5MB 이하)</label><input id="editMedImage" name="image" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">새 사진을 고르지 않으면 기존 사진을 유지합니다.</small></div></form>`, '<button class="btn" data-close>취소</button><button class="btn primary" id="saveMedEdit">저장</button>');
+  document.getElementById('saveMedEdit').onclick = async () => {
+    const content = document.getElementById('editMedText').value.trim();
+    const file = document.getElementById('editMedImage').files[0];
+    if (!content) return;
+    let newImagePath = meditation.imagePath;
+    let uploadedPath = null;
+    if (file) {
+      if (file.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        toast('JPG, PNG, WebP 형식의 5MB 이하 사진을 선택해 주세요.');
+        return;
+      }
+      const extension = file.type.split('/')[1].replace('jpeg', 'jpg');
+      uploadedPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('meditations').upload(uploadedPath, file, { contentType: file.type, upsert: false });
+      if (uploadError) { toast('새 사진을 올리지 못했어요.'); return; }
+      newImagePath = uploadedPath;
+    }
+    const { error } = await supabase.from('board_posts').update({ content, image_path: newImagePath }).eq('id', id);
+    if (error) {
+      if (uploadedPath) await supabase.storage.from('meditations').remove([uploadedPath]);
+      toast('수정하지 못했어요. 게시글 작성자나 관리자 계정인지 확인해 주세요.');
+      return;
+    }
+    if (uploadedPath && meditation.imagePath) await supabase.storage.from('meditations').remove([meditation.imagePath]);
+    closeModal();
+    await refreshAndRender('묵상을 수정했어요.');
+  };
 }
 
 function eventModal() {
@@ -616,6 +659,10 @@ function bind() {
       if (error) { toast('댓글을 저장하지 못했어요.'); return; }
       await refreshAndRender('댓글을 남겼어요.');
     };
+  });
+
+  document.querySelectorAll('[data-med]').forEach((card) => {
+    card.onclick = () => meditationDetailModal(card.dataset.med);
   });
 
   const meditationForm = document.getElementById('medForm');
