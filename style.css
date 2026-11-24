@@ -1012,6 +1012,11 @@ body{background:#fff;color:var(--ink)}
 .photo-post-copy{padding:14px 16px 16px}
 .photo-post-copy h3{margin:9px 0 6px}
 .photo-post-copy>p{display:-webkit-box;overflow:hidden;-webkit-line-clamp:3;-webkit-box-orient:vertical;margin-bottom:9px}
+.photo-post-actions{display:flex;align-items:center;gap:12px}
+.delete-post-btn,.btn.danger{color:#b04f56}
+.btn.danger{border-color:#e7c5c7;background:#fff8f8}
+.btn.danger:hover{background:#fbecee}
+.delete-confirm-copy{margin:0;color:#58697b;font-size:12px;line-height:1.8}
 .post-detail{max-height:min(68vh,720px);overflow-y:auto}
 .post-detail-image{display:block;width:100%;max-height:45vh;object-fit:contain;border-radius:8px;background:#f4f6f8;margin-bottom:15px}
 .post-detail-content{margin-top:14px}

@@ -428,14 +428,14 @@ function statsPage() {
 function boardPage() {
   const posts = [...db.posts].sort((a, b) => `${b.date}-${b.id}`.localeCompare(`${a.date}-${a.id}`));
   const qtPosts = posts.filter((post) => !post.image);
-  const qtCards = qtPosts.map((post) => `<article class="qt-post"><div class="qt-post-meta"><span class="pill">${esc(post.category)}</span><span>${fmt(post.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div><h3>${esc(post.author)}의 말씀 나눔</h3><p class="qt-post-content">${esc(post.content)}</p><div class="qt-post-bottom"><span>함께 나눈 댓글 ${post.comments.length}개</span><div><button class="text-btn" data-post-detail="${post.id}">댓글 보기</button><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button></div></div>${post.comments.length ? `<div class="qt-comments">${post.comments.slice(-2).map((comment) => `<div><b>${esc(comment.author)}</b><span>${esc(comment.content)}</span></div>`).join('')}</div>` : ''}</article>`).join('');
+  const qtCards = qtPosts.map((post) => `<article class="qt-post"><div class="qt-post-meta"><span class="pill">${esc(post.category)}</span><span>${fmt(post.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div><h3>${esc(post.author)}의 말씀 나눔</h3><p class="qt-post-content">${esc(post.content)}</p><div class="qt-post-bottom"><span>함께 나눈 댓글 ${post.comments.length}개</span><div><button class="text-btn" data-post-detail="${post.id}">댓글 보기</button><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button>${(post.authorId === user.id || user.role === 'admin') ? `<button class="text-btn delete-post-btn" data-delete-post="${post.id}">삭제</button>` : ''}</div></div>${post.comments.length ? `<div class="qt-comments">${post.comments.slice(-2).map((comment) => `<div><b>${esc(comment.author)}</b><span>${esc(comment.content)}</span></div>`).join('')}</div>` : ''}</article>`).join('');
   const qtView = `<div class="qt-intro"><div><span class="feature-kicker">READ · REFLECT · SHARE</span><h2>말씀을 읽고,<br>마음을 나누어요</h2><p>오늘 마음에 남은 말씀과 삶의 이야기를 함께 나눠요.</p></div><div class="qt-intro-side"><span>함께하는 묵상</span><b>작은 나눔이<br>서로의 믿음을 세워요</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="board-section-head"><div><span class="eyebrow">OUR QT</span><h2>우리의 묵상 나눔</h2><p>말씀과 삶을 나누고, 서로를 위해 기도해요.</p></div><button class="btn primary" id="newPost">＋ 큐티 쓰기</button></div><div class="qt-feed">${qtCards || '<div class="empty">첫 번째 큐티 나눔을 기다리고 있어요.</div>'}</div>`;
   return `${heading('DAILY QT', '큐티 나눔', '오늘 마음에 남은 말씀과 삶의 이야기를 함께 나눠요.')}${qtView}`;
 }
 
 function photoBoardPage() {
   const photoPosts = [...db.posts].filter((post) => post.image).sort((a, b) => `${b.date}-${b.id}`.localeCompare(`${a.date}-${a.id}`));
-  const photos = photoPosts.map((post) => `<article class="photo-post"><button type="button" class="photo-post-image" data-post-detail="${post.id}" aria-label="${esc(post.author)}의 사진 게시글 보기"><img src="${esc(post.image)}" alt="${esc(post.author)}이(가) 올린 사진"><span>사진과 나눔 보기 ↗</span></button><div class="photo-post-copy"><div class="qt-post-meta"><span>${fmt(post.date, { month: 'long', day: 'numeric' })}</span><span>${post.comments.length}개 댓글</span></div><h3>${esc(post.author)}의 사진 나눔</h3><p>${esc(post.content)}</p><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button></div></article>`).join('');
+  const photos = photoPosts.map((post) => `<article class="photo-post"><button type="button" class="photo-post-image" data-post-detail="${post.id}" aria-label="${esc(post.author)}의 사진 게시글 보기"><img src="${esc(post.image)}" alt="${esc(post.author)}이(가) 올린 사진"><span>사진과 나눔 보기 ↗</span></button><div class="photo-post-copy"><div class="qt-post-meta"><span>${fmt(post.date, { month: 'long', day: 'numeric' })}</span><span>${post.comments.length}개 댓글</span></div><h3>${esc(post.author)}의 사진 나눔</h3><p>${esc(post.content)}</p><div class="photo-post-actions"><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button>${(post.authorId === user.id || user.role === 'admin') ? `<button class="text-btn delete-post-btn" data-delete-post="${post.id}">삭제</button>` : ''}</div></div></article>`).join('');
   return `${heading('MOMENTS TOGETHER', '사진 게시판', '청소년부의 소중한 순간을 사진과 이야기로 나눠요.', '<button class="btn primary" id="newPhotoPost">＋ 사진 올리기</button>')}<div class="qt-intro photo-intro"><div><span class="feature-kicker">PHOTO BOARD</span><h2>함께한 순간을<br>사진으로 나눠요</h2><p>사진을 눌러 자세한 이야기와 댓글을 확인해 보세요.</p></div><div class="qt-intro-side"><span>우리의 기록</span><b>함께 웃고<br>함께 자라는 시간</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="photo-board-grid">${photos || '<div class="empty">아직 올라온 사진이 없어요.</div>'}</div>`;
 }
 
@@ -514,9 +514,29 @@ function postDetailModal(id) {
   if (!post) return;
   const comments = post.comments.map((comment) => `<div class="comment-row"><b>${esc(comment.author)}</b><p>${esc(comment.content)}</p></div>`).join('');
   const image = post.image ? `<img class="post-detail-image" src="${esc(post.image)}" alt="${esc(post.author)}의 게시 사진">` : '';
-  modal(`${post.image ? '사진 나눔' : '큐티 나눔'}`, `<div class="post-detail">${image}<div class="qt-post-meta"><span>${esc(post.author)}</span><span>${fmt(post.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div><p class="post-detail-content">${esc(post.content)}</p><section class="comment-thread"><h3>댓글 ${post.comments.length}개</h3>${comments || '<p class="muted">첫 댓글을 남겨 보세요.</p>'}</section></div>`, `<button class="btn" data-close>닫기</button><button class="btn primary" id="detailComment">댓글 달기</button>${post.image && (post.authorId === user.id || user.role === 'admin') ? '<button class="btn" id="editMeditation">수정</button>' : ''}`);
+  const canManage = post.authorId === user.id || user.role === 'admin';
+  modal(`${post.image ? '사진 나눔' : '큐티 나눔'}`, `<div class="post-detail">${image}<div class="qt-post-meta"><span>${esc(post.author)}</span><span>${fmt(post.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div><p class="post-detail-content">${esc(post.content)}</p><section class="comment-thread"><h3>댓글 ${post.comments.length}개</h3>${comments || '<p class="muted">첫 댓글을 남겨 보세요.</p>'}</section></div>`, `<button class="btn" data-close>닫기</button><button class="btn primary" id="detailComment">댓글 달기</button>${post.image && canManage ? '<button class="btn" id="editMeditation">수정</button>' : ''}${canManage ? '<button class="btn danger" id="deletePost">삭제</button>' : ''}`);
   document.getElementById('detailComment')?.addEventListener('click', () => commentModal(id));
   document.getElementById('editMeditation')?.addEventListener('click', () => editMeditationModal(id));
+  document.getElementById('deletePost')?.addEventListener('click', () => deletePostModal(id));
+}
+
+function deletePostModal(id) {
+  const post = db.posts.find((item) => item.id === id);
+  if (!post || (post.authorId !== user.id && user.role !== 'admin')) return;
+  const kind = post.image ? '사진 게시글' : '큐티 나눔';
+  modal(`${kind} 삭제`, `<p class="delete-confirm-copy">이 ${kind}과 댓글 ${post.comments.length}개가 함께 삭제됩니다.${post.image ? ' 게시 사진도 함께 정리합니다.' : ''}<br>삭제한 내용은 복구할 수 없어요.</p>`, '<button class="btn" data-close>취소</button><button class="btn danger" id="confirmDeletePost">삭제하기</button>');
+  document.getElementById('confirmDeletePost').onclick = async () => {
+    const { error } = await supabase.from('board_posts').delete().eq('id', post.id);
+    if (error) { toast('삭제하지 못했어요. 작성자나 관리자 계정인지 확인해 주세요.'); return; }
+    let imageCleanupFailed = false;
+    if (post.imagePath) {
+      const { error: storageError } = await supabase.storage.from('meditations').remove([post.imagePath]);
+      imageCleanupFailed = Boolean(storageError);
+    }
+    closeModal();
+    await refreshAndRender(imageCleanupFailed ? '게시글과 댓글은 삭제했지만 사진 파일 정리에 실패했어요.' : '게시글과 댓글을 삭제했어요.');
+  };
 }
 
 function commentModal(postId) {
@@ -707,6 +727,9 @@ function bind() {
 
   document.querySelectorAll('[data-post-detail]').forEach((card) => {
     card.onclick = () => postDetailModal(card.dataset.postDetail);
+  });
+  document.querySelectorAll('[data-delete-post]').forEach((button) => {
+    button.onclick = () => deletePostModal(button.dataset.deletePost);
   });
 
 }
