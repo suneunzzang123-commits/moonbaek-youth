@@ -22,7 +22,6 @@ const emptyDb = () => ({ youths: [], attendance: {}, posts: [], meditations: [],
 let user = null;
 let db = emptyDb();
 let page = 'dashboard';
-let boardTab = 'qt';
 let selectedDate = nextSunday();
 let rosterFilter = 'active';
 let searchTerm = '';
@@ -327,14 +326,14 @@ function nav() {
   const items = [
     ['dashboard', '⌂', '대시보드'], ['attendance', '✓', '출석 체크'],
     ['youths', '♙', '청소년 명단'], ['stats', '▥', '출석 통계'],
-    ['board', '▤', '큐티 나눔'], ['calendar', '▦', '캘린더'],
+    ['board', '▤', '큐티 나눔'], ['photos', '▧', '사진 게시판'], ['calendar', '▦', '캘린더'],
   ];
   if (user?.role === 'admin') items.push(['admin', '⚙', '관리']);
   return items.map(([id, icon, label]) => `<button class="${page === id ? 'active' : ''}" data-page="${id}"><span class="ico">${icon}</span>${label}</button>`).join('');
 }
 
 function pageTitle() {
-  return ({ dashboard: '대시보드', attendance: '출석 체크', youths: '청소년 명단', stats: '출석 통계', board: '큐티 나눔', calendar: '캘린더', admin: '관리' })[page];
+  return ({ dashboard: '대시보드', attendance: '출석 체크', youths: '청소년 명단', stats: '출석 통계', board: '큐티 나눔', photos: '사진 게시판', calendar: '캘린더', admin: '관리' })[page];
 }
 
 function shell(content) {
@@ -429,13 +428,15 @@ function statsPage() {
 function boardPage() {
   const posts = [...db.posts].sort((a, b) => `${b.date}-${b.id}`.localeCompare(`${a.date}-${a.id}`));
   const qtPosts = posts.filter((post) => !post.image);
-  const photoPosts = posts.filter((post) => post.image);
   const qtCards = qtPosts.map((post) => `<article class="qt-post"><div class="qt-post-meta"><span class="pill">${esc(post.category)}</span><span>${fmt(post.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div><h3>${esc(post.author)}의 말씀 나눔</h3><p class="qt-post-content">${esc(post.content)}</p><div class="qt-post-bottom"><span>함께 나눈 댓글 ${post.comments.length}개</span><div><button class="text-btn" data-post-detail="${post.id}">댓글 보기</button><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button></div></div>${post.comments.length ? `<div class="qt-comments">${post.comments.slice(-2).map((comment) => `<div><b>${esc(comment.author)}</b><span>${esc(comment.content)}</span></div>`).join('')}</div>` : ''}</article>`).join('');
-  const photos = photoPosts.map((post) => `<article class="photo-post"><button type="button" class="photo-post-image" data-post-detail="${post.id}" aria-label="${esc(post.author)}의 사진 게시글 보기"><img src="${esc(post.image)}" alt="${esc(post.author)}이(가) 올린 사진"><span>사진과 나눔 보기 ↗</span></button><div class="photo-post-copy"><div class="qt-post-meta"><span>${fmt(post.date, { month: 'long', day: 'numeric' })}</span><span>${post.comments.length}개 댓글</span></div><h3>${esc(post.author)}의 사진 나눔</h3><p>${esc(post.content)}</p><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button></div></article>`).join('');
-  const tabs = `<div class="board-tabs" role="tablist" aria-label="게시판 선택"><button class="board-tab ${boardTab === 'qt' ? 'active' : ''}" role="tab" aria-selected="${boardTab === 'qt'}" data-board-tab="qt"><span>01</span> 큐티 나눔 <small>${qtPosts.length}</small></button><button class="board-tab ${boardTab === 'photos' ? 'active' : ''}" role="tab" aria-selected="${boardTab === 'photos'}" data-board-tab="photos"><span>02</span> 사진 게시판 <small>${photoPosts.length}</small></button></div>`;
   const qtView = `<div class="qt-intro"><div><span class="feature-kicker">READ · REFLECT · SHARE</span><h2>말씀을 읽고,<br>마음을 나누어요</h2><p>오늘 마음에 남은 말씀과 삶의 이야기를 함께 나눠요.</p></div><div class="qt-intro-side"><span>함께하는 묵상</span><b>작은 나눔이<br>서로의 믿음을 세워요</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="board-section-head"><div><span class="eyebrow">OUR QT</span><h2>우리의 묵상 나눔</h2><p>말씀과 삶을 나누고, 서로를 위해 기도해요.</p></div><button class="btn primary" id="newPost">＋ 큐티 쓰기</button></div><div class="qt-feed">${qtCards || '<div class="empty">첫 번째 큐티 나눔을 기다리고 있어요.</div>'}</div>`;
-  const photoView = `<div class="qt-intro photo-intro"><div><span class="feature-kicker">MOMENTS TOGETHER</span><h2>함께한 순간을<br>사진으로 나눠요</h2><p>청소년부의 소중한 순간과 이야기를 기록해요.</p></div><div class="qt-intro-side"><span>우리의 기록</span><b>함께 웃고<br>함께 자라는 시간</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="board-section-head"><div><span class="eyebrow">PHOTO BOARD</span><h2>사진 게시판</h2><p>사진을 누르면 자세한 나눔과 댓글을 볼 수 있어요.</p></div><button class="btn primary" id="newPhotoPost">＋ 사진 올리기</button></div><div class="photo-board-grid">${photos || '<div class="empty">아직 올라온 사진이 없어요.</div>'}</div>`;
-  return `${heading('DAILY QT', '말씀을 나누고 함께 자라요', '오늘의 묵상과 청소년부의 순간을 함께 기록해요.')}${tabs}${boardTab === 'qt' ? qtView : photoView}`;
+  return `${heading('DAILY QT', '큐티 나눔', '오늘 마음에 남은 말씀과 삶의 이야기를 함께 나눠요.')}${qtView}`;
+}
+
+function photoBoardPage() {
+  const photoPosts = [...db.posts].filter((post) => post.image).sort((a, b) => `${b.date}-${b.id}`.localeCompare(`${a.date}-${a.id}`));
+  const photos = photoPosts.map((post) => `<article class="photo-post"><button type="button" class="photo-post-image" data-post-detail="${post.id}" aria-label="${esc(post.author)}의 사진 게시글 보기"><img src="${esc(post.image)}" alt="${esc(post.author)}이(가) 올린 사진"><span>사진과 나눔 보기 ↗</span></button><div class="photo-post-copy"><div class="qt-post-meta"><span>${fmt(post.date, { month: 'long', day: 'numeric' })}</span><span>${post.comments.length}개 댓글</span></div><h3>${esc(post.author)}의 사진 나눔</h3><p>${esc(post.content)}</p><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button></div></article>`).join('');
+  return `${heading('MOMENTS TOGETHER', '사진 게시판', '청소년부의 소중한 순간을 사진과 이야기로 나눠요.', '<button class="btn primary" id="newPhotoPost">＋ 사진 올리기</button>')}<div class="qt-intro photo-intro"><div><span class="feature-kicker">PHOTO BOARD</span><h2>함께한 순간을<br>사진으로 나눠요</h2><p>사진을 눌러 자세한 이야기와 댓글을 확인해 보세요.</p></div><div class="qt-intro-side"><span>우리의 기록</span><b>함께 웃고<br>함께 자라는 시간</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="photo-board-grid">${photos || '<div class="empty">아직 올라온 사진이 없어요.</div>'}</div>`;
 }
 
 function eventRows(events) {
@@ -632,7 +633,7 @@ function render() {
   if (!user) { login(); return; }
   if (!user.isActive) { pendingApproval(); return; }
   if (page === 'admin' && user.role !== 'admin') page = 'dashboard';
-  const views = { dashboard, attendance: attendancePage, youths: youthsPage, stats: statsPage, board: boardPage, calendar: calendarPage, admin: adminPage };
+  const views = { dashboard, attendance: attendancePage, youths: youthsPage, stats: statsPage, board: boardPage, photos: photoBoardPage, calendar: calendarPage, admin: adminPage };
   shell(views[page]());
   bind();
 }
@@ -697,9 +698,6 @@ function bind() {
     };
   });
 
-  document.querySelectorAll('[data-board-tab]').forEach((button) => {
-    button.onclick = () => { boardTab = button.dataset.boardTab; render(); };
-  });
   document.getElementById('newPost')?.addEventListener('click', qtPostModal);
   document.getElementById('newPhotoPost')?.addEventListener('click', photoPostModal);
 
