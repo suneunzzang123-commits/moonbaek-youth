@@ -22,6 +22,7 @@ const emptyDb = () => ({ youths: [], attendance: {}, posts: [], meditations: [],
 let user = null;
 let db = emptyDb();
 let page = 'dashboard';
+let boardTab = 'qt';
 let selectedDate = nextSunday();
 let rosterFilter = 'active';
 let searchTerm = '';
@@ -326,14 +327,14 @@ function nav() {
   const items = [
     ['dashboard', '⌂', '대시보드'], ['attendance', '✓', '출석 체크'],
     ['youths', '♙', '청소년 명단'], ['stats', '▥', '출석 통계'],
-    ['board', '▤', '묵상 게시판'], ['calendar', '▦', '캘린더'],
+    ['board', '▤', '큐티 나눔'], ['calendar', '▦', '캘린더'],
   ];
   if (user?.role === 'admin') items.push(['admin', '⚙', '관리']);
   return items.map(([id, icon, label]) => `<button class="${page === id ? 'active' : ''}" data-page="${id}"><span class="ico">${icon}</span>${label}</button>`).join('');
 }
 
 function pageTitle() {
-  return ({ dashboard: '대시보드', attendance: '출석 체크', youths: '청소년 명단', stats: '출석 통계', board: '묵상 게시판', calendar: '캘린더', admin: '관리' })[page];
+  return ({ dashboard: '대시보드', attendance: '출석 체크', youths: '청소년 명단', stats: '출석 통계', board: '큐티 나눔', calendar: '캘린더', admin: '관리' })[page];
 }
 
 function shell(content) {
@@ -426,13 +427,15 @@ function statsPage() {
 }
 
 function boardPage() {
-  const posts = [...db.posts].sort((a, b) => b.date.localeCompare(a.date));
-  const meditationCards = db.meditations.length ? [...db.meditations].map((m) => `<button type="button" class="med-card med-card-button" data-med="${m.id}" aria-label="${esc(m.author)}의 묵상 상세 보기"><img class="med-image" src="${esc(m.image)}" alt="묵상 사진" style="object-fit:cover"><span class="med-card-copy"><h3>${esc(m.author)}의 묵상</h3><p>${esc(m.content)}</p><span class="muted">${fmt(m.date, { month: 'short', day: 'numeric' })}</span></span><span class="med-open" aria-hidden="true">자세히 보기 ↗</span></button>`).join('') : '<div class="empty">아직 묵상 사진이 없어요.</div>';
-  const postCards = posts.map((post) => `<article class="med-card" style="grid-template-columns:1fr"><div><span class="pill">${esc(post.category)}</span><h3 style="margin-top:9px">${esc(post.author)} <span class="muted">· ${fmt(post.date, { month: 'short', day: 'numeric' })}</span></h3><p>${esc(post.content)}</p>${post.comments.map((comment) => `<div style="margin:8px 0 0 14px;padding-left:10px;border-left:2px solid #e7eee6;font-size:11px;color:#686f67"><b>${esc(comment.author)}</b> ${esc(comment.content)}</div>`).join('')}<button class="text-btn" data-comment="${post.id}" style="margin-top:10px">＋ 댓글 달기</button></div></article>`).join('');
-  return `${heading('MEDITATION', '묵상 게시판', '말씀을 나누고 서로를 격려해요.', '<button class="btn primary" id="newPost">＋ 글 작성</button>')}
-    <div class="grid-two"><div class="panel"><div class="panel-head"><div><h2>오늘의 묵상</h2><p>사진과 마음에 남은 생각을 공유합니다.</p></div></div><form id="medForm"><div class="field"><label>사진 (선택, JPG·PNG·WebP 5MB 이하)</label><input type="file" id="medImage" accept="image/jpeg,image/png,image/webp"></div><div class="field" style="margin-top:12px"><label>묵상 내용 *</label><textarea id="medText" required placeholder="오늘 마음에 남은 말씀이나 생각을 나눠 주세요."></textarea></div><button class="btn primary" style="margin-top:12px">공유하기</button></form></div>
-    <div class="panel"><div class="panel-head"><div><h2>사진 묵상</h2><p>승인된 교사와 함께 나눠요.</p></div></div>${meditationCards}</div></div>
-    <div class="panel"><div class="panel-head"><div><h2>느낀 점과 응원</h2><p>서로의 나눔에 댓글을 남겨 보세요.</p></div></div>${postCards || '<div class="empty">아직 게시글이 없어요.</div>'}</div>`;
+  const posts = [...db.posts].sort((a, b) => `${b.date}-${b.id}`.localeCompare(`${a.date}-${a.id}`));
+  const qtPosts = posts.filter((post) => !post.image);
+  const photoPosts = posts.filter((post) => post.image);
+  const qtCards = qtPosts.map((post) => `<article class="qt-post"><div class="qt-post-meta"><span class="pill">${esc(post.category)}</span><span>${fmt(post.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div><h3>${esc(post.author)}의 말씀 나눔</h3><p class="qt-post-content">${esc(post.content)}</p><div class="qt-post-bottom"><span>함께 나눈 댓글 ${post.comments.length}개</span><div><button class="text-btn" data-post-detail="${post.id}">댓글 보기</button><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button></div></div>${post.comments.length ? `<div class="qt-comments">${post.comments.slice(-2).map((comment) => `<div><b>${esc(comment.author)}</b><span>${esc(comment.content)}</span></div>`).join('')}</div>` : ''}</article>`).join('');
+  const photos = photoPosts.map((post) => `<article class="photo-post"><button type="button" class="photo-post-image" data-post-detail="${post.id}" aria-label="${esc(post.author)}의 사진 게시글 보기"><img src="${esc(post.image)}" alt="${esc(post.author)}이(가) 올린 사진"><span>사진과 나눔 보기 ↗</span></button><div class="photo-post-copy"><div class="qt-post-meta"><span>${fmt(post.date, { month: 'long', day: 'numeric' })}</span><span>${post.comments.length}개 댓글</span></div><h3>${esc(post.author)}의 사진 나눔</h3><p>${esc(post.content)}</p><button class="text-btn" data-comment="${post.id}">댓글 달기 ↗</button></div></article>`).join('');
+  const tabs = `<div class="board-tabs" role="tablist" aria-label="게시판 선택"><button class="board-tab ${boardTab === 'qt' ? 'active' : ''}" role="tab" aria-selected="${boardTab === 'qt'}" data-board-tab="qt"><span>01</span> 큐티 나눔 <small>${qtPosts.length}</small></button><button class="board-tab ${boardTab === 'photos' ? 'active' : ''}" role="tab" aria-selected="${boardTab === 'photos'}" data-board-tab="photos"><span>02</span> 사진 게시판 <small>${photoPosts.length}</small></button></div>`;
+  const qtView = `<div class="qt-intro"><div><span class="feature-kicker">READ · REFLECT · SHARE</span><h2>말씀을 읽고,<br>마음을 나누어요</h2><p>오늘 마음에 남은 말씀과 삶의 이야기를 함께 나눠요.</p></div><div class="qt-intro-side"><span>함께하는 묵상</span><b>작은 나눔이<br>서로의 믿음을 세워요</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="board-section-head"><div><span class="eyebrow">OUR QT</span><h2>우리의 묵상 나눔</h2><p>말씀과 삶을 나누고, 서로를 위해 기도해요.</p></div><button class="btn primary" id="newPost">＋ 큐티 쓰기</button></div><div class="qt-feed">${qtCards || '<div class="empty">첫 번째 큐티 나눔을 기다리고 있어요.</div>'}</div>`;
+  const photoView = `<div class="qt-intro photo-intro"><div><span class="feature-kicker">MOMENTS TOGETHER</span><h2>함께한 순간을<br>사진으로 나눠요</h2><p>청소년부의 소중한 순간과 이야기를 기록해요.</p></div><div class="qt-intro-side"><span>우리의 기록</span><b>함께 웃고<br>함께 자라는 시간</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="board-section-head"><div><span class="eyebrow">PHOTO BOARD</span><h2>사진 게시판</h2><p>사진을 누르면 자세한 나눔과 댓글을 볼 수 있어요.</p></div><button class="btn primary" id="newPhotoPost">＋ 사진 올리기</button></div><div class="photo-board-grid">${photos || '<div class="empty">아직 올라온 사진이 없어요.</div>'}</div>`;
+  return `${heading('DAILY QT', '말씀을 나누고 함께 자라요', '오늘의 묵상과 청소년부의 순간을 함께 기록해요.')}${tabs}${boardTab === 'qt' ? qtView : photoView}`;
 }
 
 function eventRows(events) {
@@ -505,12 +508,68 @@ function historyModal(id) {
   modal(`${esc(youth.name)} 출석 이력`, `<p class="muted">${esc(youth.group || '반 미지정')} · ${summary}</p><div class="list">${dates.map((date) => `<div class="list-row"><b style="font-size:12px">${fmt(date, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</b><span class="pill ${statusClass(db.attendance[date][id])}">${db.attendance[date][id]}</span></div>`).join('') || '<div class="empty">기록된 출석 이력이 없어요.</div>'}</div>`, '<button class="btn" data-close>닫기</button>');
 }
 
-function meditationDetailModal(id) {
-  const meditation = db.meditations.find((item) => item.id === id);
-  if (!meditation) return;
-  const canEdit = meditation.authorId === user.id || user.role === 'admin';
-  modal(`${esc(meditation.author)}의 묵상`, `<div class="med-detail">${meditation.image ? `<img src="${esc(meditation.image)}" alt="${esc(meditation.author)}의 묵상 사진">` : ''}<p class="med-detail-content">${esc(meditation.content)}</p><span class="muted">${fmt(meditation.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>`, `<button class="btn" data-close>닫기</button>${canEdit ? '<button class="btn primary" id="editMeditation">수정</button>' : ''}`);
+function postDetailModal(id) {
+  const post = db.posts.find((item) => item.id === id);
+  if (!post) return;
+  const comments = post.comments.map((comment) => `<div class="comment-row"><b>${esc(comment.author)}</b><p>${esc(comment.content)}</p></div>`).join('');
+  const image = post.image ? `<img class="post-detail-image" src="${esc(post.image)}" alt="${esc(post.author)}의 게시 사진">` : '';
+  modal(`${post.image ? '사진 나눔' : '큐티 나눔'}`, `<div class="post-detail">${image}<div class="qt-post-meta"><span>${esc(post.author)}</span><span>${fmt(post.date, { year: 'numeric', month: 'long', day: 'numeric' })}</span></div><p class="post-detail-content">${esc(post.content)}</p><section class="comment-thread"><h3>댓글 ${post.comments.length}개</h3>${comments || '<p class="muted">첫 댓글을 남겨 보세요.</p>'}</section></div>`, `<button class="btn" data-close>닫기</button><button class="btn primary" id="detailComment">댓글 달기</button>${post.image && (post.authorId === user.id || user.role === 'admin') ? '<button class="btn" id="editMeditation">수정</button>' : ''}`);
+  document.getElementById('detailComment')?.addEventListener('click', () => commentModal(id));
   document.getElementById('editMeditation')?.addEventListener('click', () => editMeditationModal(id));
+}
+
+function commentModal(postId) {
+  modal('댓글 남기기', `<form id="commentForm" class="form"><div class="field full"><label for="commentText">함께 나눌 말 *</label><textarea id="commentText" name="content" required maxlength="3000" placeholder="따뜻한 응원과 나눔을 적어 주세요."></textarea></div></form>`, '<button class="btn" data-close>취소</button><button class="btn primary" id="saveComment">댓글 등록</button>');
+  document.getElementById('saveComment').onclick = async () => {
+    const content = document.getElementById('commentText').value.trim();
+    if (!content) return;
+    const { error } = await supabase.from('comments').insert({ post_id: postId, author_id: user.id, author_name: user.name, content });
+    if (error) { toast('댓글을 저장하지 못했어요.'); return; }
+    closeModal();
+    await refreshAndRender('댓글을 남겼어요.');
+  };
+}
+
+function qtPostModal() {
+  modal('오늘의 큐티 나눔', `<form id="qtPostForm" class="form"><div class="field"><label for="qtCategory">나눔 주제</label><select id="qtCategory" name="category"><option>오늘의 묵상</option><option>함께 기도해요</option><option>감사 나눔</option></select></div><div class="field"><label for="qtVerse">말씀 본문 (선택)</label><input id="qtVerse" name="verse" maxlength="160" placeholder="예: 시편 23편 1절"></div><div class="field full"><label for="qtReflection">말씀을 읽고 마음에 남은 점 *</label><textarea id="qtReflection" name="reflection" required maxlength="7500" placeholder="오늘 말씀을 통해 느낀 점이나 삶의 이야기를 나눠 주세요."></textarea></div><div class="field full"><label for="qtPrayer">함께 나눌 기도 (선택)</label><textarea id="qtPrayer" name="prayer" maxlength="2000" placeholder="함께 기도하고 싶은 내용을 적어 주세요."></textarea></div></form>`, '<button class="btn" data-close>취소</button><button class="btn primary" id="saveQtPost">나눔 올리기</button>');
+  document.getElementById('saveQtPost').onclick = async () => {
+    const form = new FormData(document.getElementById('qtPostForm'));
+    const reflection = String(form.get('reflection')).trim();
+    if (!reflection) return;
+    const verse = String(form.get('verse')).trim();
+    const prayer = String(form.get('prayer')).trim();
+    const content = `${verse ? `말씀 본문: ${verse}\n\n` : ''}묵상 나눔\n${reflection}${prayer ? `\n\n함께 기도해요\n${prayer}` : ''}`;
+    const { error } = await supabase.from('board_posts').insert({ author_id: user.id, author_name: user.name, post_date: todayISO(), category: form.get('category'), content });
+    if (error) { toast('큐티 나눔을 저장하지 못했어요.'); return; }
+    closeModal();
+    await refreshAndRender('큐티 나눔을 올렸어요.');
+  };
+}
+
+function photoPostModal() {
+  modal('사진 게시판에 올리기', `<form id="photoPostForm" class="form"><div class="field full"><label for="photoUpload">사진 선택 (JPG·PNG·WebP, 5MB 이하) *</label><input id="photoUpload" name="image" type="file" accept="image/jpeg,image/png,image/webp" required></div><div class="field full"><label for="photoCaption">사진 이야기 *</label><textarea id="photoCaption" name="content" required maxlength="10000" placeholder="이 사진에 담긴 순간을 나눠 주세요."></textarea></div></form>`, '<button class="btn" data-close>취소</button><button class="btn primary" id="savePhotoPost">사진 올리기</button>');
+  document.getElementById('savePhotoPost').onclick = async () => {
+    const form = document.getElementById('photoPostForm');
+    const file = form.elements.image.files[0];
+    const content = form.elements.content.value.trim();
+    if (!file || !content) { form.reportValidity(); return; }
+    if (file.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast('JPG, PNG, WebP 형식의 5MB 이하 사진을 선택해 주세요.');
+      return;
+    }
+    const extension = file.type.split('/')[1].replace('jpeg', 'jpg');
+    const imagePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+    const { error: uploadError } = await supabase.storage.from('meditations').upload(imagePath, file, { contentType: file.type, upsert: false });
+    if (uploadError) { toast('사진을 올리지 못했어요.'); return; }
+    const { error } = await supabase.from('board_posts').insert({ author_id: user.id, author_name: user.name, post_date: todayISO(), category: '사진 나눔', content, image_path: imagePath });
+    if (error) {
+      await supabase.storage.from('meditations').remove([imagePath]);
+      toast('사진 게시글을 저장하지 못했어요.');
+      return;
+    }
+    closeModal();
+    await refreshAndRender('사진을 게시판에 올렸어요.');
+  };
 }
 
 function editMeditationModal(id) {
@@ -638,54 +697,20 @@ function bind() {
     };
   });
 
-  document.getElementById('newPost')?.addEventListener('click', () => {
-    modal('묵상 게시글 작성', `<form id="postForm" class="form"><div class="field"><label>분류</label><select name="category"><option>묵상 나눔</option><option>함께 기도해요</option><option>감사 나눔</option></select></div><div class="field full"><label>내용 *</label><textarea name="content" required maxlength="10000"></textarea></div></form>`, '<button class="btn" data-close>취소</button><button class="btn primary" id="savePost">올리기</button>');
-    document.getElementById('savePost').onclick = async () => {
-      const form = new FormData(document.getElementById('postForm'));
-      const content = String(form.get('content')).trim();
-      if (!content) return;
-      const { error } = await supabase.from('board_posts').insert({ author_id: user.id, author_name: user.name, post_date: todayISO(), category: form.get('category'), content });
-      if (error) { toast('게시글을 저장하지 못했어요.'); return; }
-      closeModal();
-      await refreshAndRender('게시글을 공유했어요.');
-    };
+  document.querySelectorAll('[data-board-tab]').forEach((button) => {
+    button.onclick = () => { boardTab = button.dataset.boardTab; render(); };
   });
+  document.getElementById('newPost')?.addEventListener('click', qtPostModal);
+  document.getElementById('newPhotoPost')?.addEventListener('click', photoPostModal);
 
   document.querySelectorAll('[data-comment]').forEach((button) => {
-    button.onclick = async () => {
-      const content = window.prompt('댓글을 입력해 주세요.');
-      if (!content?.trim()) return;
-      const { error } = await supabase.from('comments').insert({ post_id: button.dataset.comment, author_id: user.id, author_name: user.name, content: content.trim() });
-      if (error) { toast('댓글을 저장하지 못했어요.'); return; }
-      await refreshAndRender('댓글을 남겼어요.');
-    };
+    button.onclick = () => commentModal(button.dataset.comment);
   });
 
-  document.querySelectorAll('[data-med]').forEach((card) => {
-    card.onclick = () => meditationDetailModal(card.dataset.med);
+  document.querySelectorAll('[data-post-detail]').forEach((card) => {
+    card.onclick = () => postDetailModal(card.dataset.postDetail);
   });
 
-  const meditationForm = document.getElementById('medForm');
-  if (meditationForm) meditationForm.onsubmit = async (event) => {
-    event.preventDefault();
-    const content = document.getElementById('medText').value.trim();
-    const file = document.getElementById('medImage').files[0];
-    if (!content) return;
-    let imagePath = null;
-    if (file) {
-      if (file.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        toast('JPG, PNG, WebP 형식의 5MB 이하 사진을 선택해 주세요.');
-        return;
-      }
-      const extension = file.type.split('/')[1].replace('jpeg', 'jpg');
-      imagePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from('meditations').upload(imagePath, file, { contentType: file.type, upsert: false });
-      if (uploadError) { toast('사진을 올리지 못했어요.'); return; }
-    }
-    const { error } = await supabase.from('board_posts').insert({ author_id: user.id, author_name: user.name, post_date: todayISO(), category: '묵상 사진', content, image_path: imagePath });
-    if (error) { toast('묵상을 저장하지 못했어요.'); return; }
-    await refreshAndRender('묵상을 공유했어요.');
-  };
 }
 
 boot();
