@@ -28,6 +28,7 @@ let searchTerm = '';
 let monthCursor = new Date();
 let toastTimer;
 let recoveryMode = false;
+let lastLoadedAt = null;
 
 function toast(message) {
   toastEl.textContent = message;
@@ -187,6 +188,7 @@ async function loadData() {
     if (profileError) throw profileError;
     db.profiles = profiles;
   }
+  lastLoadedAt = new Date();
 }
 
 function login(errorMessage = '') {
@@ -202,7 +204,7 @@ function login(errorMessage = '') {
     </form>
     <button class="text-btn" id="forgotPassword" style="margin-top:14px">비밀번호를 잊으셨나요?</button><br>
     <button class="text-btn" id="showSignup" style="margin-top:16px">처음 오셨나요? 교사 가입 신청</button>
-    <div class="login-hint">가입 후 관리자의 승인이 완료되면 출석부를 사용할 수 있어요.</div>
+    <div class="login-hint">승인된 교사만 청소년 정보와 출석 기록을 볼 수 있어요. 공용 기기에서는 사용 후 로그아웃해 주세요.</div>
   </div></div>`;
 
   document.getElementById('loginForm').onsubmit = async (event) => {
@@ -339,7 +341,7 @@ function pageTitle() {
 function shell(content) {
   app.innerHTML = `<div class="site-shell">
     <div class="announcement"><div class="site-width"><span class="announcement-tag">함께</span><span>문백교회 청소년부 · 함께 자라고, 함께 기록해요</span><span class="announcement-date">주일 출석과 청소년부 소식을 한곳에서</span></div></div>
-    <div class="utility"><div class="site-width"><span>문백교회 <b>/</b> 청소년부</span><div class="user-chip"><div class="avatar">${esc(user.name.slice(0, 1))}</div><span class="name">${esc(user.name)} · ${user.role === 'admin' ? '관리자' : '교사'}</span><button class="text-btn" id="logout">로그아웃</button></div></div></div>
+    <div class="utility"><div class="site-width"><span>문백교회 <b>/</b> 청소년부</span><div class="user-chip"><span class="sync-time">${lastLoadedAt ? `최근 갱신 ${new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit' }).format(lastLoadedAt)}` : '공유 자료'}</span><button class="text-btn refresh-btn" id="refreshData" aria-label="최신 데이터 새로고침" title="최신 데이터 새로고침">↻ 새로고침</button><div class="avatar">${esc(user.name.slice(0, 1))}</div><span class="name">${esc(user.name)} · ${user.role === 'admin' ? '관리자' : '교사'}</span><button class="text-btn" id="logout">로그아웃</button></div></div></div>
     <header class="site-header"><div class="site-width"><div class="brand"><div class="brand-mark">✳</div><div><strong>문백교회 청소년부</strong><small>함께 자라고, 함께 기록해요</small></div></div><nav class="nav">${nav()}</nav><div class="approval-mark">● 승인된 교사</div></div></header>
     <main class="main"><section class="content site-width">${content}</section></main>
   </div>`;
@@ -347,6 +349,17 @@ function shell(content) {
     button.onclick = () => { page = button.dataset.page; render(); };
   });
   document.getElementById('logout').onclick = () => supabase.auth.signOut();
+  document.getElementById('refreshData').onclick = async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.classList.add('is-refreshing');
+    try {
+      await refreshAndRender('최신 공유 데이터를 불러왔어요.');
+    } finally {
+      button.disabled = false;
+      button.classList.remove('is-refreshing');
+    }
+  };
 }
 
 function heading(eyebrow, title, description, actions = '') {
@@ -362,15 +375,17 @@ function dashboard() {
   const recentDates = Object.keys(db.attendance).sort().reverse().slice(0, 4);
   const dates = recentDates.length ? recentDates : [selectedDate];
   const recent = dates.map((date) => `<div class="list-row"><div class="person"><div class="person-avatar">${new Date(`${date}T12:00:00`).getDate()}</div><div><strong>${fmt(date, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</strong><small>출석 ${Object.values(db.attendance[date] || {}).filter((s) => s === '출석').length}명 · 결석 ${Object.values(db.attendance[date] || {}).filter((s) => s === '결석').length}명</small></div></div><button class="text-btn" data-open-date="${date}">기록 보기</button></div>`).join('');
-  return `${heading(`SUNDAY · ${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}`, '아이들과 함께하는 주일', '오늘의 예배를 준비하고, 한 명 한 명의 안부를 살펴봐요.', `<input type="date" class="date-input" id="dashDate" value="${selectedDate}"><button class="btn primary" data-page="attendance">출석 체크 시작 ↗</button>`)}
-    <div class="welcome-feature"><div class="welcome-copy"><span class="feature-kicker">SUNDAY · YOUTH MINISTRY</span><h2>한 사람 한 사람,<br>사랑으로 기억해요</h2><p>함께 예배하고 서로의 한 주를 살피는 문백교회 청소년부</p><button class="feature-link" data-page="attendance">오늘 출석 기록하기 <span>↗</span></button><div class="feature-dots"><i></i><i></i><i></i></div></div><div class="feature-side"><span>THIS SUNDAY</span><strong>${fmt(selectedDate, { month: 'long', day: 'numeric', weekday: 'long' })}</strong><div class="feature-count"><b>${c['출석']}</b><small>명 출석 확인</small></div><span class="feature-cross">✳</span></div></div>
-    <div class="quick-section"><div class="quick-title"><div><span class="eyebrow">QUICK ACCESS</span><h2>메뉴</h2></div><p>출석부터 일정까지, 자주 쓰는 메뉴를 모았어요.</p></div><div class="quick-grid"><button class="quick-card quick-primary" data-page="attendance"><span>01　ATTENDANCE</span><b>주일 출석 체크</b><small>예배 참석 현황을 기록해요</small><i>↗</i></button><button class="quick-card" data-page="youths"><span>02　PEOPLE</span><b>청소년 명단</b><small>아이들의 정보를 살펴봐요</small><i>↗</i></button><button class="quick-card" data-page="stats"><span>03　INSIGHTS</span><b>출석 통계</b><small>함께 쌓인 기록을 확인해요</small><i>↗</i></button><button class="quick-card" data-page="calendar"><span>04　CALENDAR</span><b>청소년부 일정</b><small>다가오는 일정을 확인해요</small><i>↗</i></button></div></div>
+  const community = [...db.posts].sort((a, b) => `${b.date}-${b.id}`.localeCompare(`${a.date}-${a.id}`)).slice(0, 3);
+  const communityRows = community.map((post) => `<button class="community-row" data-page="${post.image ? 'photos' : 'board'}"><span class="community-kind">${post.image ? '사진' : '큐티'}</span><span class="community-copy"><b>${esc(post.image ? `${post.author}의 사진 나눔` : `${post.author}의 큐티 나눔`)}</b><small>${esc(post.content.replace(/\s+/g, ' ').slice(0, 80))}</small></span><span class="community-count">댓글 ${post.comments.length}</span></button>`).join('');
+  return `${heading(`SUNDAY · ${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}`, '아이들과 함께하는 주일', '예배 준비와 출석 확인, 아이들의 한 주를 한곳에서 살펴봐요.', `<input type="date" class="date-input" id="dashDate" value="${selectedDate}"><button class="btn primary" data-page="attendance">출석 체크 시작 ↗</button>`)}
+    <div class="welcome-feature"><div class="welcome-copy"><span class="feature-kicker">SUNDAY · YOUTH MINISTRY</span><h2>한 사람 한 사람,<br>사랑으로 기억해요</h2><p>함께 예배하고 서로의 한 주를 살피는 문백교회 청소년부</p><button class="feature-link" data-page="attendance">예배 출석 기록하기 <span>↗</span></button><div class="feature-dots"><i></i><i></i><i></i></div></div><div class="feature-side"><span>선택한 예배</span><strong>${fmt(selectedDate, { month: 'long', day: 'numeric', weekday: 'long' })}</strong><div class="feature-count"><b>${c['출석']}</b><small>명 출석 확인</small></div><span class="feature-cross">✳</span></div></div>
+    <div class="quick-section"><div class="quick-title"><div><span class="eyebrow">QUICK ACCESS</span><h2>필요한 메뉴를 바로 찾으세요</h2></div><p>예배 준비부터 큐티와 사진 나눔까지</p></div><div class="quick-grid"><button class="quick-card quick-primary" data-page="attendance"><span>01　ATTENDANCE</span><b>주일 출석 체크</b><small>예배 참석 현황을 기록해요</small><i>↗</i></button><button class="quick-card" data-page="youths"><span>02　PEOPLE</span><b>청소년 명단</b><small>재적과 출석 이력을 확인해요</small><i>↗</i></button><button class="quick-card" data-page="stats"><span>03　INSIGHTS</span><b>출석 통계</b><small>월별 기록을 살펴봐요</small><i>↗</i></button><button class="quick-card" data-page="calendar"><span>04　CALENDAR</span><b>청소년부 일정</b><small>예배와 모임을 확인해요</small><i>↗</i></button><button class="quick-card" data-page="board"><span>05　DAILY QT</span><b>큐티 나눔</b><small>말씀과 기도 제목을 나눠요</small><i>↗</i></button><button class="quick-card" data-page="photos"><span>06　PHOTO BOARD</span><b>사진 게시판</b><small>함께한 순간을 기록해요</small><i>↗</i></button></div></div>
     <div class="stats">${stat('재적 청소년', '현재 재적 기준', activeYouth().length, '♙')}${stat('출석', '예배 참석', c['출석'], '✓')}${stat('결석', '안부 확인 필요', c['결석'], '!')}${stat('사전 연락 · 미확인', `사전 연락 ${c['사전 연락']} · 미확인 ${c['미확인']}`, c['사전 연락'] + c['미확인'], '◷')}</div>
-    <div class="grid-two"><div class="panel"><div class="panel-head"><div><h2>오늘 출석 현황</h2><p>${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric' })} 기준 · 재적 ${activeYouth().length}명</p></div><button class="link-btn" data-page="attendance">출석부 열기 →</button></div>
+    <div class="grid-two"><div class="panel"><div class="panel-head"><div><h2>선택한 예배 출석 현황</h2><p>${fmt(selectedDate, { year: 'numeric', month: 'long', day: 'numeric' })} 기준 · 재적 ${activeYouth().length}명</p></div><button class="link-btn" data-page="attendance">출석부 열기 →</button></div>
       ${['출석', '결석', '사전 연락', '미확인'].map((s) => `<div class="progress-row"><span class="label">${s}</span><div class="bar"><i style="width:${activeYouth().length ? (c[s] / activeYouth().length) * 100 : 0}%"></i></div><strong>${c[s]}명</strong></div>`).join('')}
       <p class="notice">출석률은 출석 ÷ (출석 + 결석 + 사전 연락)으로 계산합니다. 미확인과 기록이 없는 날짜는 분모에서 제외합니다.</p></div>
       <div class="panel"><div class="panel-head"><div><h2>최근 출석 기록</h2><p>공유 데이터베이스에 저장된 날짜</p></div><button class="link-btn" data-page="stats">통계 보기 →</button></div><div class="list">${recent}</div></div></div>
-    <div class="panel"><div class="panel-head"><div><h2>이번 주 일정</h2><p>다가오는 청소년부 일정</p></div><button class="link-btn" data-page="calendar">캘린더 →</button></div>${eventRows(db.events.filter((e) => e.date >= todayISO()).slice(0, 3)) || '<div class="empty">등록된 일정이 없어요.</div>'}</div>`;
+    <div class="grid-two home-lower"><div class="panel"><div class="panel-head"><div><h2>이번 주 일정</h2><p>다가오는 청소년부 예배와 모임</p></div><button class="link-btn" data-page="calendar">일정 전체 보기 →</button></div>${eventRows(db.events.filter((e) => e.date >= todayISO()).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3), user.role === 'admin') || '<div class="empty">등록된 일정이 없어요.</div>'}</div><div class="panel"><div class="panel-head"><div><h2>최근 큐티와 사진 나눔</h2><p>함께 남긴 이야기</p></div><button class="link-btn" data-page="board">나눔 보기 →</button></div><div class="community-list">${communityRows || '<div class="empty">아직 올라온 나눔이 없어요.</div>'}</div><div class="community-links"><button class="text-btn" data-page="board">큐티 전체 보기 →</button><button class="text-btn" data-page="photos">사진 게시판 →</button></div></div></div>`;
 }
 
 function attendancePage() {
@@ -439,8 +454,8 @@ function photoBoardPage() {
   return `${heading('MOMENTS TOGETHER', '사진 게시판', '청소년부의 소중한 순간을 사진과 이야기로 나눠요.', '<button class="btn primary" id="newPhotoPost">＋ 사진 올리기</button>')}<div class="qt-intro photo-intro"><div><span class="feature-kicker">PHOTO BOARD</span><h2>함께한 순간을<br>사진으로 나눠요</h2><p>사진을 눌러 자세한 이야기와 댓글을 확인해 보세요.</p></div><div class="qt-intro-side"><span>우리의 기록</span><b>함께 웃고<br>함께 자라는 시간</b><span class="qt-cross" aria-hidden="true">✳</span></div></div><div class="photo-board-grid">${photos || '<div class="empty">아직 올라온 사진이 없어요.</div>'}</div>`;
 }
 
-function eventRows(events) {
-  return events.map((event) => `<div class="event-row"><div class="event-date"><strong>${new Date(`${event.date}T12:00:00`).getDate()}</strong>${fmt(event.date, { month: 'short' })}</div><div><strong>${esc(event.title)}</strong><small>${esc(event.description || '')}${event.location ? ` · ${esc(event.location)}` : ''}</small></div></div>`).join('');
+function eventRows(events, canManage = false) {
+  return events.map((event) => `<div class="event-row"><div class="event-date"><strong>${new Date(`${event.date}T12:00:00`).getDate()}</strong>${fmt(event.date, { month: 'short' })}</div><div class="event-main"><strong>${esc(event.title)}</strong><small>${esc(event.description || '')}${event.location ? ` · ${esc(event.location)}` : ''}</small></div>${canManage ? `<div class="event-actions"><button class="text-btn" data-edit-event="${event.id}">수정</button><button class="text-btn event-delete" data-delete-event="${event.id}">삭제</button></div>` : ''}</div>`).join('');
 }
 
 function calendarPage() {
@@ -462,7 +477,7 @@ function calendarPage() {
   const addButton = user.role === 'admin' ? '<button class="btn primary" id="addEvent">＋ 일정 추가</button>' : '';
   return `${heading('CALENDAR', '함께하는 일정', '예배와 청소년부 일정을 확인해요.', `<button class="btn" id="prevMonth">←</button><button class="btn" id="nextMonth">→</button>${addButton}`)}
     <div class="grid-two calendar-layout"><div class="panel calendar-panel"><div class="panel-head"><div><h2>${year}년 ${month + 1}월</h2><p>날짜별 예배와 청소년부 일정</p></div></div><div class="month-calendar" role="grid" aria-label="${year}년 ${month + 1}월 달력">${['일', '월', '화', '수', '목', '금', '토'].map((d, i) => `<div class="cal-label ${i === 0 ? 'sunday' : ''} ${i === 6 ? 'saturday' : ''}" role="columnheader">${d}</div>`).join('')}${cells.join('')}</div></div>
-    <div class="panel"><div class="panel-head"><div><h2>일정 목록</h2><p>${year}년 ${month + 1}월</p></div></div>${eventRows(monthEvents) || '<div class="empty">이번 달 일정이 없어요.</div>'}</div></div>`;
+    <div class="panel"><div class="panel-head"><div><h2>일정 목록</h2><p>${year}년 ${month + 1}월 · 관리자만 일정을 수정할 수 있어요.</p></div></div>${eventRows(monthEvents, user.role === 'admin') || '<div class="empty">이번 달 일정이 없어요.</div>'}</div></div>`;
 }
 
 function adminPage() {
@@ -626,16 +641,34 @@ function editMeditationModal(id) {
   };
 }
 
-function eventModal() {
-  modal('일정 추가', `<form id="eventForm" class="form"><div class="field full"><label>일정 이름 *</label><input name="title" required maxlength="200"></div><div class="field"><label>날짜 *</label><input name="date" type="date" required value="${nextSunday()}"></div><div class="field"><label>장소</label><input name="location" maxlength="200"></div><div class="field full"><label>설명</label><input name="description" maxlength="1000"></div></form>`, '<button class="btn" data-close>취소</button><button class="btn primary" id="saveEvent">저장</button>');
+function eventModal(id = '') {
+  if (user.role !== 'admin') return;
+  const event = db.events.find((item) => item.id === id) || {};
+  modal(id ? '일정 수정' : '일정 추가', `<form id="eventForm" class="form"><div class="field full"><label>일정 이름 *</label><input name="title" required maxlength="200" value="${esc(event.title || '')}"></div><div class="field"><label>날짜 *</label><input name="date" type="date" required value="${event.date || nextSunday()}"></div><div class="field"><label>장소</label><input name="location" maxlength="200" value="${esc(event.location || '')}"></div><div class="field full"><label>설명</label><input name="description" maxlength="1000" value="${esc(event.description || '')}"></div></form>`, '<button class="btn" data-close>취소</button><button class="btn primary" id="saveEvent">저장</button>');
   document.getElementById('saveEvent').onclick = async () => {
     const form = new FormData(document.getElementById('eventForm'));
     const title = String(form.get('title')).trim();
     if (!title) return;
-    const { error } = await supabase.from('calendar_events').insert({ title, event_date: form.get('date'), location: form.get('location'), description: form.get('description'), created_by: user.id });
-    if (error) { toast('일정을 저장하지 못했어요. 관리자 권한을 확인해 주세요.'); return; }
+    const values = { title, event_date: form.get('date'), location: String(form.get('location')).trim(), description: String(form.get('description')).trim() };
+    const result = id
+      ? await supabase.from('calendar_events').update(values).eq('id', id)
+      : await supabase.from('calendar_events').insert({ ...values, created_by: user.id });
+    if (result.error) { toast('일정을 저장하지 못했어요. 관리자 권한과 연결을 확인해 주세요.'); return; }
     closeModal();
-    await refreshAndRender('일정을 추가했어요.');
+    await refreshAndRender(id ? '일정을 수정했어요.' : '일정을 추가했어요.');
+  };
+}
+
+function deleteEventModal(id) {
+  if (user.role !== 'admin') return;
+  const event = db.events.find((item) => item.id === id);
+  if (!event) return;
+  modal('일정 삭제', `<p class="delete-confirm-copy"><b>${esc(event.title)}</b> 일정을 삭제할까요?<br>삭제하면 복구할 수 없습니다.</p>`, '<button class="btn" data-close>취소</button><button class="btn danger" id="confirmDeleteEvent">삭제하기</button>');
+  document.getElementById('confirmDeleteEvent').onclick = async () => {
+    const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+    if (error) { toast('일정을 삭제하지 못했어요. 관리자 권한을 확인해 주세요.'); return; }
+    closeModal();
+    await refreshAndRender('일정을 삭제했어요.');
   };
 }
 
@@ -701,6 +734,8 @@ function bind() {
   document.getElementById('prevMonth')?.addEventListener('click', () => { monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1); render(); });
   document.getElementById('nextMonth')?.addEventListener('click', () => { monthCursor = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1); render(); });
   document.getElementById('addEvent')?.addEventListener('click', eventModal);
+  document.querySelectorAll('[data-edit-event]').forEach((button) => { button.onclick = () => eventModal(button.dataset.editEvent); });
+  document.querySelectorAll('[data-delete-event]').forEach((button) => { button.onclick = () => deleteEventModal(button.dataset.deleteEvent); });
 
   document.querySelectorAll('[data-approve]').forEach((button) => {
     button.onclick = async () => {
